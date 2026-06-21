@@ -12,6 +12,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { SearchPanel } from './SearchPanel';
 import { GitHubGist } from './GitHubGist';
+import { CommandPalette, type Command } from './CommandPalette';
 import { FleetConsole } from '../fleet/FleetConsole';
 import { FileNode, Tab, EditorSettings, ConsoleMsg } from '../types';
 import {
@@ -94,6 +95,7 @@ export function IDE({ theme, onToggleTheme }: IDEProps) {
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [panelHeight, setPanelHeight] = useState(220);
   const [closeConfirm, setCloseConfirm] = useState<{ tabId: string } | null>(null);
+  const [showPalette, setShowPalette] = useState(false);
 
   // Refs for keyboard handler to always have current state
   const activeTabIdRef = useRef(activeTabId);
@@ -310,6 +312,11 @@ export function IDE({ theme, onToggleTheme }: IDEProps) {
       if (e.key === 'F5') {
         e.preventDefault();
         handleToggleRun();
+        return;
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setShowPalette(p => !p);
       }
     };
     window.addEventListener('keydown', handler);
@@ -540,11 +547,11 @@ export function IDE({ theme, onToggleTheme }: IDEProps) {
                     A VS Code-like editor in your browser
                   </div>
                   <div className="welcome-keys">
+                    <div>Ctrl+Shift+P — Command Palette</div>
                     <div>Ctrl+B — Toggle Explorer</div>
                     <div>Ctrl+` — Toggle Terminal</div>
                     <div>F5 — Toggle Preview</div>
                     <div>Ctrl+S — Save File</div>
-                    <div>Ctrl+Shift+F — Format Document</div>
                   </div>
                 </div>
               )}
@@ -625,6 +632,33 @@ export function IDE({ theme, onToggleTheme }: IDEProps) {
           setFiles(loadedFiles);
           setShowGist(false);
         }}
+      />
+
+      {/* Command palette */}
+      <CommandPalette
+        isOpen={showPalette}
+        onClose={() => setShowPalette(false)}
+        commands={[
+          { id: 'fleet',      label: 'Open Fleet Console',    icon: '🤖', description: 'AI Agent Manager panel',    action: () => handleViewChange('fleet') },
+          { id: 'explorer',   label: 'Open Explorer',         icon: '📁', shortcut: 'Ctrl+B',                       action: () => handleViewChange('explorer') },
+          { id: 'search',     label: 'Open Search',           icon: '🔍',                                            action: () => handleViewChange('search') },
+          { id: 'git',        label: 'Open Source Control',   icon: '🌿',                                            action: () => handleViewChange('git') },
+          { id: 'extensions', label: 'Open Extensions',       icon: '🧩',                                            action: () => handleViewChange('extensions') },
+          { id: 'settings',   label: 'Open Settings',         icon: '⚙️',                                            action: () => handleViewChange('settings') },
+          { id: 'run',        label: isRunning ? 'Stop Preview' : 'Run Preview', icon: isRunning ? '⏹' : '▶️', shortcut: 'F5', action: handleToggleRun },
+          { id: 'terminal',   label: 'Toggle Terminal',        icon: '⌨️', shortcut: 'Ctrl+`',                       action: () => setShowTerminal(p => !p) },
+          { id: 'save',       label: 'Save File',              icon: '💾', shortcut: 'Ctrl+S',                       action: () => { if (activeTabId) handleSave(activeTabId); } },
+          { id: 'theme',      label: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`, icon: theme === 'dark' ? '☀️' : '🌙', action: onToggleTheme },
+          { id: 'export',     label: 'Export as ZIP',          icon: '📦',                                            action: handleExport },
+          { id: 'gist',       label: 'Open GitHub Gist',       icon: '🐙',                                            action: () => setShowGist(true) },
+          ...tabs.map(t => ({
+            id: `tab-${t.id}`,
+            label: `Open: ${t.name}`,
+            icon: '📄' as string,
+            description: t.filePath,
+            action: () => setActiveTabId(t.id),
+          })),
+        ] satisfies Command[]}
       />
 
       {/* Unsaved-changes close confirmation */}
